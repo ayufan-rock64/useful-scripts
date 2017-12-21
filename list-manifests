@@ -1,0 +1,31 @@
+#!/bin/bash
+
+manifests() {
+    jq -r ".[].assets | .[].browser_download_url" | grep manifest.xml
+}
+
+releases() {
+    curl -s "https://api.github.com/repos/$1/releases?page=$2"
+}
+
+repos=(
+    ayufan-rock64/linux-build
+)
+
+if [[ "$1" == "test" ]]; then
+    humanbytes $(cat releases.json | traffic | sum)
+    exit 1
+fi
+
+for repo in ${repos[@]}; do
+    echo -n "$repo = "
+    for i in $(seq 1 10); do
+        all=$(releases "$repo" "$i")
+        all_manifests=$(echo "$all" | manifests)
+        if [[ -z "$all_manifests" ]]; then
+            break
+        fi
+        echo "$all_manifests"
+    done
+    echo ""
+done

@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -eo pipefail
+
+projects() {
+  grep "project name"
+}
+
+filter() {
+  sed 's/^.*name="\([^ ]*\)" .*revision="\([a-f0-9]*\)" .*$/\1\t\2/g'
+}
+
+create_tag() {
+  # POST /repos/:owner/:repo/git/refs
+  echo "$@"
+  cat <<EOF | curl --fail -X POST \
+    -H "Authorization: token $GITHUB_TOKEN" -d @- \
+    "https://api.github.com/repos/$1/git/refs"
+{
+  "ref": "$3",
+  "sha": "$2"
+}
+EOF
+}
+
+tags() {
+  VERSION="$1"
+  while read NAME REVISION; do
+    case $NAME in
+      kernel)
+        NAME=linux-kernel
+        ;;
+
+      u-boot)
+        NAME=linux-u-boot
+        ;;
+
+      rkbin|NextThingCo/*|ARM-software/arm-trusted-firmware)
+        continue
+        ;;
+
+      linux-build-scripts|linux-kernel|linux-u-boot|linux-mainline-kernel|rk-rootfs-build)
+        ;;
+
+      *)
+        echo "Unknown name: $NAME"
+        exit 1
+        ;;
+    esac
+
+    create_tag "ayufan-rock64/$NAME" "$REVISION" "refs/tags/ayufan-rock64/linux-build/$VERSION"
+  done
+}
+
+for i; do
+  echo $i
+  cat "$i" | projects | filter | tags "$(basename $i .xml)"
+done

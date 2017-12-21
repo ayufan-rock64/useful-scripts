@@ -1,0 +1,9 @@
+#!/bin/bash
+
+mkdir -p manifests
+
+while read URL; do
+    version=$(basename $(dirname "$URL"))
+    curl -L --fail "$URL" > "manifests/${version}.xml" &
+done
+wait

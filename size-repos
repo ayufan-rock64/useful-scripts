@@ -1,0 +1,59 @@
+#!/bin/bash
+
+sizes() {
+    jq -r ".[].assets | .[].size" 
+}
+
+downloads() {
+    jq -r ".[].assets | .[].download_count" 
+}
+
+traffic() {
+    jq -r ".[].assets | ( .[].size * .[].download_count )" 
+}
+
+sum() {
+    awk '{s+=$1} END {print s}'
+}
+
+humanbytes() {
+    b=${1:-0}; d=''; s=0; S=(Bytes {K,M,G,T,E,P,Y,Z}iB)
+    while ((b > 1024)); do
+        d="$(printf ".%02d" $((b % 1024 * 100 / 1024)))"
+        b=$((b / 1024))
+        let s++
+    done
+    echo "$b$d ${S[$s]}"
+}
+
+releases() {
+    curl -s https://api.github.com/repos/$1/releases
+}
+
+repos=(
+    ayufan-pine64/android-5.1
+    ayufan-pine64/android-6.0
+    ayufan-pine64/android-7.0
+    ayufan-pine64/android-7.1
+    ayufan-rock64/android-7.1
+    ayufan-pine64/linux-build
+    ayufan-rock64/linux-build
+    ayufan-rock64/linux-rootfs
+)
+
+if [[ "$1" == "test" ]]; then
+    humanbytes $(cat releases.json | traffic | sum)
+    exit 1
+fi
+
+for repo in ${repos[@]}; do
+    echo -n "$repo = "
+    all=$(releases "$repo")
+    echo -n " size: "
+    echo -n "$(humanbytes $(echo "$all" | sizes | sum))"
+    echo -n " downloads: "
+    echo -n "$(echo "$all" | downloads | sum)"
+    echo -n " traffic: "
+    echo -n "$(humanbytes $(echo "$all" | traffic | sum))"
+    echo ""
+done
